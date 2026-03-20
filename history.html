@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>History – StorySpark</title>
+  <link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+<div class="container">
+  <nav class="navbar">
+    <a href="index.html">📖 Stories</a>
+    <a href="history.html">📜 History</a>
+    <a href="sentence-builder.html">✏️ Sentence Builder</a>
+    <a href="idea-journal.html">💡 Idea Journal</a>
+  </nav>
+
+  <div class="story-card">
+    <h2>📜 Your Reading History</h2>
+    <ul id="historyList" class="history-list"></ul>
+  </div>
+
+  <div class="story-card">
+    <h2>🏆 Best Stars Earned</h2>
+    <div id="bestStarsList"></div>
+  </div>
+
+  <div style="text-align: center; margin: 20px;">
+    <button id="resetProgressBtn" style="background:#f1e0c7; border:none; padding:12px 24px; border-radius:60px;">🔄 Reset All Progress</button>
+  </div>
+</div>
+
+<script src="assets/main.js"></script>
+<script src="assets/stories.js"></script>
+<script>
+  function displayHistory() {
+    const history = getHistory();
+    const list = document.getElementById('historyList');
+    if (history.length === 0) {
+      list.innerHTML = '<li>No attempts yet. Read a story and answer all questions correctly!</li>';
+      return;
+    }
+    list.innerHTML = history.map(entry => `
+      <li>
+        <strong>${entry.date}</strong> – ${entry.storyTitle}<br>
+        Score: ${entry.score}/${entry.totalQuestions} stars
+      </li>
+    `).join('');
+  }
+
+  function displayBestStars() {
+    const best = getBestStars();
+    const container = document.getElementById('bestStarsList');
+    if (Object.keys(best).length === 0) {
+      container.innerHTML = '<p>No stars earned yet. Complete a story to see your best!</p>';
+      return;
+    }
+    const list = STORIES.map(story => {
+      const stars = best[story.id] || 0;
+      const max = story.questions.length;
+      const starString = '★'.repeat(stars) + '☆'.repeat(max - stars);
+      return `<div><strong>${story.title}</strong> ${starString} (${stars}/${max})</div>`;
+    }).join('');
+    container.innerHTML = list;
+  }
+
+  document.addEventListener('DOMContentLoaded', () => {
+    displayHistory();
+    displayBestStars();
+    document.getElementById('resetProgressBtn').addEventListener('click', resetAllProgress);
+  });
+</script>
+</body>
+</html>
