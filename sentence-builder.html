@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sentence Builder – StorySpark</title>
+  <link rel="stylesheet" href="assets/style.css">
+  <style>
+    .sentence-area {
+      background: #fff9ed;
+      border-radius: 32px;
+      padding: 20px;
+      margin: 20px 0;
+      font-size: 1.2rem;
+      min-height: 80px;
+    }
+    .word-tile {
+      display: inline-block;
+      background: #ffcf6e;
+      padding: 10px 18px;
+      margin: 6px;
+      border-radius: 40px;
+      cursor: pointer;
+    }
+    .word-tile.selected {
+      background: #ffb347;
+      color: white;
+    }
+  </style>
+</head>
+<body>
+<div class="container">
+  <nav class="navbar">
+    <a href="index.html">📖 Stories</a>
+    <a href="history.html">📜 History</a>
+    <a href="sentence-builder.html">✏️ Sentence Builder</a>
+    <a href="idea-journal.html">💡 Idea Journal</a>
+  </nav>
+
+  <div class="story-card">
+    <h2>✏️ Build a Sentence</h2>
+    <p>Click the words in the correct order to form a sentence.</p>
+    <div id="sentencePrompt" style="font-weight:bold; margin-bottom:10px;">Sentence to build:</div>
+    <div id="targetSentence" style="background:#f0e7d9; padding:12px; border-radius:32px; margin-bottom:20px;"></div>
+    <div id="scrambledWords" class="word-tiles"></div>
+    <div class="sentence-area" id="userSentence"></div>
+    <button id="checkSentenceBtn" class="check-single">Check Sentence</button>
+    <button id="nextSentenceBtn" style="margin-left:12px; background:#b0bec5;">Next Sentence</button>
+    <div id="sentenceFeedback" style="margin-top:12px;"></div>
+  </div>
+</div>
+
+<script src="assets/main.js"></script>
+<script>
+  const sentences = [
+    { text: "The cat sat on the mat.", words: ["The","cat","sat","on","the","mat."] },
+    { text: "She likes to read books.", words: ["She","likes","to","read","books."] },
+    { text: "My dog is very friendly.", words: ["My","dog","is","very","friendly."] }
+  ];
+  let currentSentenceIndex = 0;
+  let currentTarget = [];
+  let scrambled = [];
+  let selectedOrder = [];
+
+  function shuffleArray(arr) {
+    for (let i = arr.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [arr[i], arr[j]] = [arr[j], arr[i]];
+    }
+    return arr;
+  }
+
+  function loadSentence(index) {
+    currentTarget = sentences[index].words;
+    scrambled = shuffleArray([...currentTarget]);
+    selectedOrder = [];
+    render();
+  }
+
+  function render() {
+    // Display target sentence (for reference)
+    document.getElementById('targetSentence').innerHTML = `<strong>Example:</strong> ${currentTarget.join(' ')}`;
+    // Display scrambled tiles
+    const scrambledDiv = document.getElementById('scrambledWords');
+    scrambledDiv.innerHTML = scrambled.map((word, idx) => `<div class="word-tile" data-idx="${idx}">${word}</div>`).join('');
+    // Display current selected order
+    const userDiv = document.getElementById('userSentence');
+    userDiv.innerHTML = selectedOrder.map(w => `<span class="word-tile">${w}</span>`).join(' ') || 'Click words in order...';
+    // Attach click handlers to tiles
+    document.querySelectorAll('.word-tile').forEach(tile => {
+      tile.addEventListener('click', (e) => {
+        const word = tile.innerText;
+        const idx = scrambled.indexOf(word);
+        if (idx !== -1) {
+          // Remove from scrambled and add to selected
+          selectedOrder.push(word);
+          scrambled.splice(idx, 1);
+          render();
+        }
+      });
+    });
+    // Clear feedback
+    document.getElementById('sentenceFeedback').innerHTML = '';
+  }
+
+  function checkSentence() {
+    const userSentenceStr = selectedOrder.join(' ');
+    const correctStr = currentTarget.join(' ');
+    if (userSentenceStr === correctStr) {
+      showNotification('🎉 Perfect sentence! 🎉', false);
+      document.getElementById('sentenceFeedback').innerHTML = '<span style="color:green;">✅ Correct! Great job building the sentence.</span>';
+    } else {
+      showNotification('Not quite. Try ordering the words again.', true);
+      document.getElementById('sentenceFeedback').innerHTML = `<span style="color:red;">❌ Your sentence: "${userSentenceStr}".<br>Hint: ${correctStr}</span>`;
+    }
+  }
+
+  document.getElementById('checkSentenceBtn').addEventListener('click', checkSentence);
+  document.getElementById('nextSentenceBtn').addEventListener('click', () => {
+    currentSentenceIndex = (currentSentenceIndex + 1) % sentences.length;
+    loadSentence(currentSentenceIndex);
+  });
+
+  loadSentence(0);
+</script>
+</body>
+</html>
