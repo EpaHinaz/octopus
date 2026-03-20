@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Idea Journal – StorySpark</title>
+  <link rel="stylesheet" href="assets/style.css">
+  <style>
+    .image-placeholder {
+      background: #ddd;
+      border-radius: 32px;
+      overflow: hidden;
+      max-width: 300px;
+      margin: 10px 0;
+    }
+    .image-placeholder img {
+      width: 100%;
+      height: auto;
+      display: block;
+    }
+  </style>
+</head>
+<body>
+<div class="container">
+  <nav class="navbar">
+    <a href="index.html">📖 Stories</a>
+    <a href="history.html">📜 History</a>
+    <a href="sentence-builder.html">✏️ Sentence Builder</a>
+    <a href="idea-journal.html">💡 Idea Journal</a>
+  </nav>
+
+  <div class="journal-card">
+    <h2>💡 Idea Journal</h2>
+    <p>Use these words and the picture to write a story or idea.</p>
+    <div id="promptContainer" class="journal-prompt">
+      <div id="wordPrompt" class="word-prompt">🐾 Words: ...</div>
+      <div id="imagePrompt" class="prompt-image"></div>
+    </div>
+    <button id="newPromptBtn" class="check-single" style="margin-bottom:20px;">✨ New Prompt ✨</button>
+
+    <textarea id="journalEntry" rows="6" placeholder="Write your idea here..."></textarea>
+    <button id="saveIdeaBtn" class="check-single">Save Idea</button>
+
+    <h3>📔 Your Saved Ideas</h3>
+    <ul id="savedIdeasList" class="saved-ideas"></ul>
+  </div>
+</div>
+
+<script src="assets/main.js"></script>
+<script>
+  // Word banks
+  const nouns = ["cat", "dog", "tree", "sun", "moon", "star", "flower", "robot", "friend", "castle"];
+  const verbs = ["run", "jump", "sing", "dance", "read", "build", "dream", "fly", "paint", "explore"];
+  const adjectives = ["happy", "bright", "tiny", "brave", "shiny", "magical", "quiet", "friendly", "curious", "wild"];
+
+  // Free image URLs (placeholder images with themes)
+  const images = [
+    "https://picsum.photos/id/20/300/200",  // coffee
+    "https://picsum.photos/id/26/300/200",  // venice
+    "https://picsum.photos/id/30/300/200",  // coffee beans
+    "https://picsum.photos/id/42/300/200",  // piano
+    "https://picsum.photos/id/58/300/200",  // zebra
+    "https://picsum.photos/id/96/300/200"   // mountain
+  ];
+
+  let currentWords = [];
+
+  function randomItem(arr) {
+    return arr[Math.floor(Math.random() * arr.length)];
+  }
+
+  function generatePrompt() {
+    currentWords = [randomItem(adjectives), randomItem(nouns), randomItem(verbs)];
+    document.getElementById('wordPrompt').innerHTML = `✨ Words: ${currentWords.join(", ")}`;
+    const randomImage = images[Math.floor(Math.random() * images.length)];
+    document.getElementById('imagePrompt').innerHTML = `<div class="image-placeholder"><img src="${randomImage}" alt="inspiration"></div>`;
+  }
+
+  function saveIdea() {
+    const text = document.getElementById('journalEntry').value.trim();
+    if (!text) {
+      showNotification("Write something first!", true);
+      return;
+    }
+    const ideas = JSON.parse(localStorage.getItem('journalIdeas') || '[]');
+    ideas.unshift({
+      date: new Date().toLocaleString(),
+      words: currentWords,
+      text: text,
+      image: document.getElementById('imagePrompt').innerHTML
+    });
+    localStorage.setItem('journalIdeas', JSON.stringify(ideas.slice(0, 20)));
+    showNotification("Idea saved! 🌟", false);
+    document.getElementById('journalEntry').value = '';
+    displaySavedIdeas();
+  }
+
+  function displaySavedIdeas() {
+    const ideas = JSON.parse(localStorage.getItem('journalIdeas') || '[]');
+    const list = document.getElementById('savedIdeasList');
+    if (ideas.length === 0) {
+      list.innerHTML = '<li>No ideas saved yet. Write your first idea!</li>';
+      return;
+    }
+    list.innerHTML = ideas.map(idea => `
+      <li>
+        <strong>${idea.date}</strong><br>
+        <em>Prompt words: ${idea.words.join(", ")}</em><br>
+        ${idea.text}
+      </li>
+    `).join('');
+  }
+
+  document.getElementById('newPromptBtn').addEventListener('click', generatePrompt);
+  document.getElementById('saveIdeaBtn').addEventListener('click', saveIdea);
+  generatePrompt();
+  displaySavedIdeas();
+</script>
+</body>
+</html>
