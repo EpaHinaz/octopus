@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+  <title>StorySpark – Read & Learn</title>
+  <link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+<div class="container">
+  <nav class="navbar">
+    <a href="index.html">📖 Stories</a>
+    <a href="history.html">📜 History</a>
+    <a href="sentence-builder.html">✏️ Sentence Builder</a>
+    <a href="idea-journal.html">💡 Idea Journal</a>
+  </nav>
+
+  <div class="story-card">
+    <div class="story-title" id="storyTitle">Loading...</div>
+    <div class="story-text" id="storyText"></div>
+  </div>
+
+  <div id="questionsContainer"></div>
+
+  <div style="text-align: center; margin: 20px;">
+    <button id="resetProgressBtn" style="background:#f1e0c7; border:none; padding:12px 24px; border-radius:60px;">🔄 Reset All Progress</button>
+  </div>
+</div>
+
+<script src="assets/stories.js"></script>
+<script src="assets/main.js"></script>
+<script>
+  let currentStoryId = 0;
+  let storyData = STORIES[0];
+  // Store which questions have been correctly answered (for this session)
+  let correctFlags = [];
+
+  function renderStory() {
+    storyData = STORIES[currentStoryId];
+    document.getElementById('storyTitle').innerText = storyData.title;
+    document.getElementById('storyText').innerText = storyData.text;
+
+    // Reset correct flags for this story
+    correctFlags = new Array(storyData.questions.length).fill(false);
+
+    let html = '';
+    storyData.questions.forEach((q, idx) => {
+      html += `
+        <div class="question-card" data-qid="${idx}">
+          <p><strong>❓ ${q.text}</strong></p>
+          <div class="options">
+      `;
+      q.options.forEach((opt, optIdx) => {
+        html += `
+          <label class="option">
+            <input type="radio" name="q${idx}" value="${optIdx}" ${correctFlags[idx] ? 'disabled' : ''}>
+            ${opt}
+          </label>
+        `;
+      });
+      html += `
+          </div>
+          <button class="check-single" data-qid="${idx}" ${correctFlags[idx] ? 'disabled' : ''}>Check</button>
+          <span class="feedback"></span>
+          <div class="hint-text" style="font-size:0.8rem; margin-top:8px;">💡 Hint: ${q.hint}</div>
+        </div>
+      `;
+    });
+    document.getElementById('questionsContainer').innerHTML = html;
+
+    // Attach event listeners
+    document.querySelectorAll('.check-single').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        const qid = parseInt(btn.dataset.qid);
+        if (correctFlags[qid]) {
+          showNotification('You already got this one right!', false);
+          return;
+        }
+        const questionDiv = btn.closest('.question-card');
+        const selected = questionDiv.querySelector(`input[name="q${qid}"]:checked`);
+        if (!selected) {
+          showNotification('Please select an answer first.', true);
+          return;
+        }
+        const selectedVal = parseInt(selected.value);
+        const isCorrect = (selectedVal === storyData.questions[qid].correct);
+        const feedbackSpan = questionDiv.querySelector('.feedback');
+        if (isCorrect) {
+          correctFlags[qid] = true;
+          feedbackSpan.innerHTML = '✅ Correct!';
+          feedbackSpan.style.color = '#2e7d32';
+          // Disable this question's radio buttons and button
+          questionDiv.querySelectorAll('input').forEach(inp => inp.disabled = true);
+          btn.disabled = true;
+          showNotification('Great job! +1 star!', false);
+          checkAllComplete();
+        } else {
+          feedbackSpan.innerHTML = `❌ Not quite. ${storyData.questions[qid].hint}`;
+          feedbackSpan.style.color = '#c62828';
+          showNotification('Try again! Read the hint.', true);
+        }
+      });
+    });
+  }
+
+  function checkAllComplete() {
+    const allCorrect = correctFlags.every(flag => flag === true);
+    if (allCorrect) {
+      // Award star for this story
+      const totalStars = storyData.questions.length;
+      const updated = setBestStars(currentStoryId, totalStars);
+      // Save attempt to history
+      saveAttempt(currentStoryId, storyData.title, totalStars, totalStars);
+      if (updated) {
+        showNotification(`🎉 You earned all ${totalStars} stars! 🎉`, false);
+      } else {
+        showNotification(`✨ You already had this star! ✨`, false);
+      }
+      // Optionally show a celebration effect
+      const container = document.getElementById('questionsContainer');
+      const confettiMsg = document.createElement('div');
+      confettiMsg.className = 'motivation-message';
+      confettiMsg.innerHTML = '🌟 Amazing! You understood everything! 🌟';
+      confettiMsg.style.textAlign = 'center';
+      confettiMsg.style.marginTop = '20px';
+      confettiMsg.style.background = '#fffaec';
+      confettiMsg.style.padding = '12px';
+      confettiMsg.style.borderRadius = '60px';
+      container.appendChild(confettiMsg);
+      setTimeout(() => confettiMsg.remove(), 4000);
+    }
+  }
+
+  function loadStoryFromDropdown() {
+    const select = document.getElementById('storySelect');
+    if (select) {
+      currentStoryId = parseInt(select.value);
+      renderStory();
+    }
+  }
+
+  // Create story selector dropdown
+  function createStorySelector() {
+    const container = document.querySelector('.story-card');
+    const selectDiv = document.createElement('div');
+    selectDiv.style.marginBottom = '16px';
+    selectDiv.innerHTML = `
+      <label for="storySelect" style="font-weight:bold;">📚 Choose a story: </label>
+      <select id="storySelect" style="padding:8px 16px; border-radius:40px; margin-left:8px;">
+        ${STORIES.map(s => `<option value="${s.id}">${s.title}</option>`).join('')}
+      </select>
+    `;
+    container.insertBefore(selectDiv, container.firstChild);
+    document.getElementById('storySelect').addEventListener('change', loadStoryFromDropdown);
+  }
+
+  document.addEventListener('DOMContentLoaded', () => {
+    createStorySelector();
+    renderStory();
+    document.getElementById('resetProgressBtn').addEventListener('click', resetAllProgress);
+  });
+</script>
+</body>
+</html>
