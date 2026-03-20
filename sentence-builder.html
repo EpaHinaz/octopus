@@ -21,10 +21,19 @@
       margin: 6px;
       border-radius: 40px;
       cursor: pointer;
+      transition: 0.05s linear;
     }
     .word-tile.selected {
       background: #ffb347;
       color: white;
+    }
+    .example-sentence {
+      background: #e8f0fe;
+      padding: 12px;
+      border-radius: 32px;
+      margin-bottom: 20px;
+      font-style: italic;
+      color: #2c3e2f;
     }
   </style>
 </head>
@@ -39,9 +48,12 @@
 
   <div class="story-card">
     <h2>✏️ Build a Sentence</h2>
-    <p>Click the words in the correct order to form a sentence.</p>
-    <div id="sentencePrompt" style="font-weight:bold; margin-bottom:10px;">Sentence to build:</div>
-    <div id="targetSentence" style="background:#f0e7d9; padding:12px; border-radius:32px; margin-bottom:20px;"></div>
+    <p>Click the words in the correct order to form the sentence.</p>
+    
+    <div class="example-sentence">
+      <strong>📖 Example:</strong> <span id="exampleText">The cat sat on the mat.</span>
+    </div>
+
     <div id="scrambledWords" class="word-tiles"></div>
     <div class="sentence-area" id="userSentence"></div>
     <button id="checkSentenceBtn" class="check-single">Check Sentence</button>
@@ -52,15 +64,49 @@
 
 <script src="assets/main.js"></script>
 <script>
-  const sentences = [
+  // Target sentences (the ones the child needs to build)
+  const targetSentences = [
     { text: "The cat sat on the mat.", words: ["The","cat","sat","on","the","mat."] },
     { text: "She likes to read books.", words: ["She","likes","to","read","books."] },
-    { text: "My dog is very friendly.", words: ["My","dog","is","very","friendly."] }
+    { text: "My dog is very friendly.", words: ["My","dog","is","very","friendly."] },
+    { text: "The sun shines brightly.", words: ["The","sun","shines","brightly."] },
+    { text: "We went to the park.", words: ["We","went","to","the","park."] },
+    { text: "Mom baked a cake.", words: ["Mom","baked","a","cake."] },
+    { text: "The bird sings a song.", words: ["The","bird","sings","a","song."] },
+    { text: "I have a red balloon.", words: ["I","have","a","red","balloon."] },
+    { text: "Let's build a snowman.", words: ["Let's","build","a","snowman."] },
+    { text: "The frog jumped high.", words: ["The","frog","jumped","high."] },
+    { text: "My friend is kind.", words: ["My","friend","is","kind."] },
+    { text: "We love pizza.", words: ["We","love","pizza."] },
+    { text: "The car is fast.", words: ["The","car","is","fast."] },
+    { text: "She painted a picture.", words: ["She","painted","a","picture."] }
   ];
-  let currentSentenceIndex = 0;
-  let currentTarget = [];
+
+  // Example sentences (shown for inspiration, different from target)
+  const exampleSentences = [
+    "The dog ran fast.",
+    "Birds fly high.",
+    "I like apples.",
+    "She sings a song.",
+    "We play outside.",
+    "The moon is bright.",
+    "He reads a book.",
+    "They swim in the pool.",
+    "Cats sleep all day.",
+    "Flowers grow in spring."
+  ];
+
+  let currentTarget = null;
+  let currentExample = "";
   let scrambled = [];
   let selectedOrder = [];
+
+  function getRandomExample() {
+    // pick a random example different from current target text (optional but nice)
+    let candidates = exampleSentences.filter(ex => ex !== (currentTarget ? currentTarget.text : ""));
+    if (candidates.length === 0) candidates = exampleSentences;
+    return candidates[Math.floor(Math.random() * candidates.length)];
+  }
 
   function shuffleArray(arr) {
     for (let i = arr.length - 1; i > 0; i--) {
@@ -70,22 +116,32 @@
     return arr;
   }
 
-  function loadSentence(index) {
-    currentTarget = sentences[index].words;
-    scrambled = shuffleArray([...currentTarget]);
+  function loadSentence() {
+    // Pick a random target
+    const randomIndex = Math.floor(Math.random() * targetSentences.length);
+    currentTarget = { ...targetSentences[randomIndex] };
+    // Pick a random example (could be same as target? but we want different, so filter)
+    currentExample = getRandomExample();
+    
+    // Reset state
+    scrambled = shuffleArray([...currentTarget.words]);
     selectedOrder = [];
+    
     render();
   }
 
   function render() {
-    // Display target sentence (for reference)
-    document.getElementById('targetSentence').innerHTML = `<strong>Example:</strong> ${currentTarget.join(' ')}`;
+    // Display example sentence
+    document.getElementById('exampleText').innerText = currentExample;
+    
     // Display scrambled tiles
     const scrambledDiv = document.getElementById('scrambledWords');
     scrambledDiv.innerHTML = scrambled.map((word, idx) => `<div class="word-tile" data-idx="${idx}">${word}</div>`).join('');
+    
     // Display current selected order
     const userDiv = document.getElementById('userSentence');
     userDiv.innerHTML = selectedOrder.map(w => `<span class="word-tile">${w}</span>`).join(' ') || 'Click words in order...';
+    
     // Attach click handlers to tiles
     document.querySelectorAll('.word-tile').forEach(tile => {
       tile.addEventListener('click', (e) => {
@@ -99,29 +155,30 @@
         }
       });
     });
+    
     // Clear feedback
     document.getElementById('sentenceFeedback').innerHTML = '';
   }
 
   function checkSentence() {
     const userSentenceStr = selectedOrder.join(' ');
-    const correctStr = currentTarget.join(' ');
+    const correctStr = currentTarget.text;
     if (userSentenceStr === correctStr) {
       showNotification('🎉 Perfect sentence! 🎉', false);
       document.getElementById('sentenceFeedback').innerHTML = '<span style="color:green;">✅ Correct! Great job building the sentence.</span>';
     } else {
       showNotification('Not quite. Try ordering the words again.', true);
-      document.getElementById('sentenceFeedback').innerHTML = `<span style="color:red;">❌ Your sentence: "${userSentenceStr}".<br>Hint: ${correctStr}</span>`;
+      document.getElementById('sentenceFeedback').innerHTML = `<span style="color:red;">❌ Your sentence: "${userSentenceStr}".<br>Hint: Check the word order and punctuation.</span>`;
     }
   }
 
   document.getElementById('checkSentenceBtn').addEventListener('click', checkSentence);
   document.getElementById('nextSentenceBtn').addEventListener('click', () => {
-    currentSentenceIndex = (currentSentenceIndex + 1) % sentences.length;
-    loadSentence(currentSentenceIndex);
+    loadSentence();
   });
 
-  loadSentence(0);
+  // Initialize
+  loadSentence();
 </script>
 </body>
 </html>
