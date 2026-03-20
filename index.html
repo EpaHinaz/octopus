@@ -5,6 +5,76 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
   <title>StorySpark – Read & Learn</title>
   <link rel="stylesheet" href="assets/style.css">
+  <style>
+    .question-card {
+      background: #fef9ef;
+      border: 1px solid #ffe3bd;
+      border-radius: 36px;
+      padding: 18px 24px;
+      margin-bottom: 24px;
+    }
+    .options {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 16px;
+      margin: 12px 0;
+    }
+    .option {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      background: white;
+      padding: 6px 16px;
+      border-radius: 60px;
+    }
+    .feedback {
+      display: block;
+      margin-top: 8px;
+      font-size: 0.9rem;
+      padding: 6px 12px;
+      border-radius: 30px;
+    }
+    .feedback.correct {
+      background: #e8f5e9;
+      color: #2e7d32;
+    }
+    .feedback.wrong {
+      background: #ffebee;
+      color: #c62828;
+    }
+    .submit-all {
+      background: #ffa53e;
+      border: none;
+      width: 100%;
+      padding: 16px;
+      font-size: 1.3rem;
+      font-weight: bold;
+      color: white;
+      border-radius: 60px;
+      cursor: pointer;
+      margin: 20px 0;
+      box-shadow: 0 4px 0 #b45f1b;
+      transition: 0.05s linear;
+    }
+    .submit-all:active {
+      transform: translateY(2px);
+      box-shadow: 0 2px 0 #b45f1b;
+    }
+    .submit-all:disabled {
+      background: #ccc;
+      transform: none;
+      cursor: not-allowed;
+      box-shadow: none;
+    }
+    .all-correct-message {
+      background: #c8e6c9;
+      text-align: center;
+      padding: 12px;
+      border-radius: 40px;
+      margin-top: 10px;
+      font-weight: bold;
+    }
+  </style>
 </head>
 <body>
 <div class="container">
@@ -22,6 +92,8 @@
 
   <div id="questionsContainer"></div>
 
+  <button id="submitAllBtn" class="submit-all">✨ Check All Answers ✨</button>
+
   <div style="text-align: center; margin: 20px;">
     <button id="resetProgressBtn" style="background:#f1e0c7; border:none; padding:12px 24px; border-radius:60px;">🔄 Reset All Progress</button>
   </div>
@@ -32,16 +104,17 @@
 <script>
   let currentStoryId = 0;
   let storyData = STORIES[0];
-  // Store which questions have been correctly answered (for this session)
-  let correctFlags = [];
+  // Track whether this story has already been completed perfectly (to avoid duplicate stars)
+  let alreadyCompleted = false;
 
   function renderStory() {
     storyData = STORIES[currentStoryId];
     document.getElementById('storyTitle').innerText = storyData.title;
     document.getElementById('storyText').innerText = storyData.text;
 
-    // Reset correct flags for this story
-    correctFlags = new Array(storyData.questions.length).fill(false);
+    // Check if this story was already completed perfectly in the past
+    const bestStars = getBestStars();
+    alreadyCompleted = (bestStars[storyData.id] === storyData.questions.length);
 
     let html = '';
     storyData.questions.forEach((q, idx) => {
@@ -53,81 +126,96 @@
       q.options.forEach((opt, optIdx) => {
         html += `
           <label class="option">
-            <input type="radio" name="q${idx}" value="${optIdx}" ${correctFlags[idx] ? 'disabled' : ''}>
+            <input type="radio" name="q${idx}" value="${optIdx}">
             ${opt}
           </label>
         `;
       });
       html += `
           </div>
-          <button class="check-single" data-qid="${idx}" ${correctFlags[idx] ? 'disabled' : ''}>Check</button>
-          <span class="feedback"></span>
+          <div class="feedback" id="feedback-${idx}"></div>
           <div class="hint-text" style="font-size:0.8rem; margin-top:8px;">💡 Hint: ${q.hint}</div>
         </div>
       `;
     });
     document.getElementById('questionsContainer').innerHTML = html;
 
-    // Attach event listeners
-    document.querySelectorAll('.check-single').forEach(btn => {
-      btn.addEventListener('click', (e) => {
-        const qid = parseInt(btn.dataset.qid);
-        if (correctFlags[qid]) {
-          showNotification('You already got this one right!', false);
-          return;
-        }
-        const questionDiv = btn.closest('.question-card');
-        const selected = questionDiv.querySelector(`input[name="q${qid}"]:checked`);
-        if (!selected) {
-          showNotification('Please select an answer first.', true);
-          return;
-        }
-        const selectedVal = parseInt(selected.value);
-        const isCorrect = (selectedVal === storyData.questions[qid].correct);
-        const feedbackSpan = questionDiv.querySelector('.feedback');
-        if (isCorrect) {
-          correctFlags[qid] = true;
-          feedbackSpan.innerHTML = '✅ Correct!';
-          feedbackSpan.style.color = '#2e7d32';
-          // Disable this question's radio buttons and button
-          questionDiv.querySelectorAll('input').forEach(inp => inp.disabled = true);
-          btn.disabled = true;
-          showNotification('Great job! +1 star!', false);
-          checkAllComplete();
-        } else {
-          feedbackSpan.innerHTML = `❌ Not quite. ${storyData.questions[qid].hint}`;
-          feedbackSpan.style.color = '#c62828';
-          showNotification('Try again! Read the hint.', true);
-        }
-      });
-    });
+    // If already completed, disable submit button and show message
+    const submitBtn = document.getElementById('submitAllBtn');
+    if (alreadyCompleted) {
+      submitBtn.disabled = true;
+      const msgDiv = document.createElement('div');
+      msgDiv.className = 'all-correct-message';
+      msgDiv.innerHTML = '🌟 You already earned all stars for this story! 🌟';
+      const container = document.getElementById('questionsContainer');
+      if (!document.querySelector('.all-correct-message')) {
+        container.insertAdjacentHTML('afterend', msgDiv.outerHTML);
+      }
+    } else {
+      submitBtn.disabled = false;
+      // Remove any existing message
+      const existingMsg = document.querySelector('.all-correct-message');
+      if (existingMsg) existingMsg.remove();
+    }
   }
 
-  function checkAllComplete() {
-    const allCorrect = correctFlags.every(flag => flag === true);
-    if (allCorrect) {
-      // Award star for this story
-      const totalStars = storyData.questions.length;
-      const updated = setBestStars(currentStoryId, totalStars);
-      // Save attempt to history
-      saveAttempt(currentStoryId, storyData.title, totalStars, totalStars);
-      if (updated) {
-        showNotification(`🎉 You earned all ${totalStars} stars! 🎉`, false);
+  function evaluateAll() {
+    if (alreadyCompleted) {
+      showNotification("You've already mastered this story! Choose another.", false);
+      return false;
+    }
+
+    let allCorrect = true;
+    const results = [];
+
+    storyData.questions.forEach((q, idx) => {
+      const selected = document.querySelector(`input[name="q${idx}"]:checked`);
+      const isCorrect = selected && parseInt(selected.value) === q.correct;
+      if (!isCorrect) allCorrect = false;
+
+      results.push({
+        index: idx,
+        isCorrect: isCorrect,
+        userAnswer: selected ? q.options[parseInt(selected.value)] : "(no answer)",
+        correctAnswer: q.options[q.correct],
+        hint: q.hint
+      });
+    });
+
+    // Display feedback for each question
+    results.forEach(res => {
+      const feedbackDiv = document.getElementById(`feedback-${res.index}`);
+      if (res.isCorrect) {
+        feedbackDiv.innerHTML = '✅ Correct!';
+        feedbackDiv.className = 'feedback correct';
       } else {
-        showNotification(`✨ You already had this star! ✨`, false);
+        feedbackDiv.innerHTML = `❌ Not quite. ${res.hint}`;
+        feedbackDiv.className = 'feedback wrong';
       }
-      // Optionally show a celebration effect
+    });
+
+    if (allCorrect) {
+      // Award stars and save to history
+      const totalStars = storyData.questions.length;
+      const updated = setBestStars(storyData.id, totalStars);
+      saveAttempt(storyData.id, storyData.title, totalStars, totalStars);
+      showNotification(`🎉 Perfect! You earned all ${totalStars} stars! 🎉`, false);
+      
+      // Disable submit button and show completion message
+      const submitBtn = document.getElementById('submitAllBtn');
+      submitBtn.disabled = true;
+      alreadyCompleted = true;
+      
       const container = document.getElementById('questionsContainer');
-      const confettiMsg = document.createElement('div');
-      confettiMsg.className = 'motivation-message';
-      confettiMsg.innerHTML = '🌟 Amazing! You understood everything! 🌟';
-      confettiMsg.style.textAlign = 'center';
-      confettiMsg.style.marginTop = '20px';
-      confettiMsg.style.background = '#fffaec';
-      confettiMsg.style.padding = '12px';
-      confettiMsg.style.borderRadius = '60px';
-      container.appendChild(confettiMsg);
-      setTimeout(() => confettiMsg.remove(), 4000);
+      const msgDiv = document.createElement('div');
+      msgDiv.className = 'all-correct-message';
+      msgDiv.innerHTML = '🌟 Congratulations! You mastered this story! 🌟';
+      container.insertAdjacentHTML('afterend', msgDiv.outerHTML);
+      
+      return true;
+    } else {
+      showNotification("Some answers are incorrect. Try again! Read the hints.", true);
+      return false;
     }
   }
 
@@ -157,6 +245,7 @@
   document.addEventListener('DOMContentLoaded', () => {
     createStorySelector();
     renderStory();
+    document.getElementById('submitAllBtn').addEventListener('click', evaluateAll);
     document.getElementById('resetProgressBtn').addEventListener('click', resetAllProgress);
   });
 </script>
